@@ -1,0 +1,354 @@
+from flask import Flask, request,redirect, url_for,session
+app = Flask(__name__)
+import os
+app.secret_key = os.environ.get("SECRET_KEY")
+import json
+HISTORY_FILE = "history.json"
+def load_history():
+    if os.path.exists(HISTORY_FILE):
+        try:
+            with open(HISTORY_FILE, "r", encoding="utf-8") as file:
+                data = json.load(file)
+            if isinstance(data, list):
+                return data
+            return []
+        except (json.JSONDecodeError, OSError):
+            return []
+    return[]
+history = load_history()
+def save_history():
+    with open(HISTORY_FILE, "w", encoding="utf-8")as file:
+        json.dump(history, file, indent=4)
+@app.route("/", methods=["GET", "POST"])
+def home():
+    result = session.pop("result","")
+    error = session.pop("error", "")
+    if request.method == "POST":
+        action = request.form.get("action")
+        if action == "clear_energy":
+            session["result"] = ""
+            session["error"] = ""
+            return redirect(url_for("home"))
+        if action == "energy":
+            try:
+                power = float(request.form.get("energy_power", ""))
+                time_value = float(request.form.get("energy_time",""))
+                time_unit = request.form.get("energy_time_unit","hours")
+                
+                if time_unit == "seconds":
+                    hours = time_value / 3600
+                else:
+                    hours = time_value
+
+                if power < 0 or hours < 0:
+                    raise ValueError("Power and time cannot be negative.")
+
+                energy_kwh = (power / 1000) * hours
+                energy_joules = power * hours * 3600
+                joules_text = "{:,}".format(int(energy_joules))
+                
+                result = (
+                    f"Energy = {energy_kwh:g} kWh "
+                    f"({joules_text} joules)"
+                )
+
+                history.append(result)
+                save_history()
+                session["result"] = result
+                session["error"] = ""
+                return redirect(url_for("home"))
+
+            except ValueError as e:
+                session["error"] = str(e) or "Please enter valid numbers."
+                return redirect(url_for("home"))
+        if action == "calculate":
+            try:
+                result = ""
+                calculation = request.form.get("calculation")
+                a = float(request.form.get("a", ""))
+                b = float(request.form.get("b", ""))
+                if calculation == "voltage":
+                    answer = a * b
+                    result = f"voltage = {answer:g}volts"
+                elif calculation == "current":
+                    if b == 0:
+                        raise ValueError("resistance cannot be zero.")
+                    answer = a / b
+                    result = f"current = {answer:g}amperes"
+                elif calculation == "resistance":
+                    if b == 0:
+                        raise ValueError("current cannot be zero.")
+                    answer = a / b
+                    result = f"resistance = {answer:g}ohms"
+                elif calculation == "power":
+                    answer = a * b
+                    result = f"power = {answer:g}watts"
+                if result:
+                    history.append(result)
+                    save_history()
+                       
+                    session["result"] = result
+                    session["error"] = error
+                    return redirect(url_for("home"))
+          
+            except ValueError as e:
+                error = str(e) or "Please enter valid numbers."
+                session["error"] = error
+                return redirect(url_for("home"))
+        elif action == "clear":
+            history.clear()
+            save_history()
+    page = """
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta name="viewport"content="width=device-width, initial-scale=1">
+        <title>Electrical Calculator</title>
+        <style>
+            * {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    padding: 30px 15px;
+    font-family: Arial, sans-serif;
+    background: #f0f4f8;
+    color: #1e293b;
+}
+
+h1 {
+    text-align: center;
+    color: #123b65;
+    margin-bottom: 8px;
+}
+
+.subtitle {
+    text-align: center;
+    color: #64748b;
+    margin-bottom: 25px;
+}
+
+form, .result, .history {
+    max-width: 520px;
+    margin: 18px auto;
+    padding: 24px;
+    background: white;
+    border-radius: 14px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.07);
+}
+
+label {
+    display: block;
+    margin: 16px 0 7px;
+    font-weight: bold;
+    color: #334155;
+}
+
+select, input {
+    width: 100%;
+    padding: 12px;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    font-size: 16px;
+    background: white;
+}
+
+button {
+    width: 100%;
+    padding: 13px;
+    margin-top: 18px;
+    border: none;
+    border-radius: 8px;
+    background: #1769aa;
+    color: white;
+    font-size: 16px;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+button:hover {
+    background: #124f82;
+}
+
+.result {
+    color: #166534;
+    font-size: 18px;
+    font-weight: bold;
+}
+
+.history h2 {
+    color: #123b65;
+}
+
+.history li {
+    margin: 10px 0;
+    overflow-wrap: anywhere;
+}
+
+@media (max-width: 480px) {
+    body {
+        padding: 12px 8px;
+        font-size: 16px;
+    }
+
+    h1 {
+        font-size: 25px;
+        line-height: 1.3;
+    }
+
+    form, .result, .history {
+        width: 100%;
+        max-width: 100%;
+        margin: 12px auto;
+        padding: 16px;
+        border-radius: 12px;
+    }
+
+    label {
+        margin: 14px 0 8px;
+        font-size: 16px;
+    }
+
+    select, input {
+        width: 100%;
+        min-height: 46px;
+        padding: 12px;
+        font-size: 16px;
+    }
+
+    button {
+        width: 100%;
+        min-height: 46px;
+        padding: 12px;
+        font-size: 16px;
+    }
+
+    .result {
+        overflow-wrap: anywhere;
+        font-size: 17px;
+    }
+
+    .history li {
+        overflow-wrap: anywhere;
+    }
+}
+}
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                 <h1> Electrical Calculator</h1>
+                 <p>Calculate basic electrical values using ohm's law.</p>
+                 <form method="POST">
+                       <input type="hidden" name="action" value="calculate">
+                       <label>Choose calculation:</label>
+                       <select name="calculation">
+                            <option value="voltage">voltage (V = I * R)</option>
+                            <option value="current">current (I = V / R)</option>
+                            <option value="resistance">resistance (R = V / I)</option>
+                            <option value="power">power (P = V * I)</option>
+                         </select>
+                         <label id="label1">First value:</label>
+                         <input type="number" name="a" step="any" required>
+                         <label id="label2">second value:</label>
+                         <input type="number" name="b" step="any" required>
+                         <button type="submit" name="action" value="calculate">Calculate</button>
+                         <button type="button" onclick="exitCalculator()"
+                         style="background: #64748b;">
+                             Exit Calculator
+                        </button>
+                        </form>
+                        <h2 style="text-align:center;">Electrical Energy Calculator</h2>
+
+<form method="POST">
+    <label>Power (Watts):</label>
+    <input type="number" name="energy_power"
+           step="any" min="0" required>
+
+    <label>Time:</label>
+    <input type="number" name="energy_time"
+           step="any" min="0" required>
+
+    <label>Time Unit:</label>
+    <select name="energy_time_unit">
+        <option value="hours">Hours</option>
+        <option value="seconds">Seconds</option>
+    </select>
+
+    <button type="submit" name="action" value="energy">
+        Calculate Energy
+    </button>
+
+    <button type="submit" name="action" value="clear_energy"
+            formnovalidate
+            style="background: #64748b;">
+        Clear Result
+    </button>
+</form>
+                        {% if result %}
+                        <div class="result"><strong>{{ result }}</strong></div>
+                        {% endif %}
+                        {% if error %}
+                        <p class="error">{{ error }}</p>
+                        {% endif%}
+                        <h2>Calculation History</h2>
+                        {% if history %}
+                        <ol>
+                            {% for item in history %}
+                            <li>{{ item }}</li>
+                            {% endfor%}
+                        </ol>
+                        <form method="POST">
+                            <input type="hidden" name="action" value="clear">
+                            <button class="clear" type="submit">Clear History</button>
+                        </form>
+                        {% else %}
+                        <p>No calculations yet.</p>
+                        {% endif %}
+                    </div>
+                    <script>
+const calculation = document.querySelector('select[name="calculation"]');
+const label1 = document.getElementById('label1');
+const label2 = document.getElementById('label2');
+
+function updateLabels() {
+    const type = calculation.value;
+
+    if (type === 'voltage') {
+        label1.textContent = 'Current (A):';
+        label2.textContent = 'Resistance (Ohms):';
+    } else if (type === 'current') {
+        label1.textContent = 'Voltage (V):';
+        label2.textContent = 'Resistance (Ohms):';
+    } else if (type === 'resistance') {
+        label1.textContent = 'Voltage (V):';
+        label2.textContent = 'Current (A):';
+    } else if (type === 'power') {
+        label1.textContent = 'Voltage (V):';
+        label2.textContent = 'Current (A):';
+    }
+}
+
+calculation.addEventListener('change', updateLabels);
+updateLabels();
+function exitCalculator() {
+    window.close();
+
+    setTimeout(function() {
+        document.body.innerHTML = `
+            <div style="text-align:center; padding:50px 20px; font-family:Arial,sans-serif;">
+                <h1>Calculator Closed</h1>
+                <p>You can now close this browser tab.</p>
+            </div>
+        `;
+    }, 300);
+}
+</script>
+                </body>
+                </html>
+                """
+    from flask import render_template_string
+    return render_template_string(page, result=result, error=error, history=history)
+if __name__ == "__main__":
+   app.run(host="0.0.0.0", port=5001, debug=False)
