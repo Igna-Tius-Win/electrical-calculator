@@ -1,0 +1,53 @@
+README.md
+Electrical Calculator ⚡
+
+A beginner-friendly Python project for performing basic electrical calculations.
+
+Features
+
+- Calculate Voltage using Ohm's Law.
+- Calculate Current.
+- Calculate Resistance.
+- Calculate Electrical Power.
+- Handle invalid inputs.
+- Prevent division by zero.
+- Interactive menu with an exit option.
+
+Formulas Used
+
+- Voltage: V = I × R
+- Current: I = V / R
+- Resistance: R = V / I
+- Power: P = V × I
+
+Where:
+
+- V = Voltage (volts)
+- I = Current (amperes)
+- R = Resistance (ohms)
+- P = Power (watts)
+
+Requirements
+
+- Python 3
+- Required packages listed in "requirements.txt"
+
+How to Run
+
+1. Install Python 3.
+
+2. Download or clone this repository.
+
+3. Open a terminal in the project folder.
+
+4. Run:
+   
+   "python app-backup 2.py"
+
+Project Goal
+
+This project is part of my journey in learning Python and electrical engineering.
+
+Author
+
+Electrical engineering student learning Python step by step.
